@@ -153,6 +153,11 @@ class GenshinWishProbability:
             # 在底部独立一行显示统计文本，使整体呈现长页式布局
             ax3.text(0.02, 0.98, stats_text, transform=ax3.transAxes, fontsize=11, va='top', family='sans-serif',
                      bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.95, pad=0.8))
+            # 同时在顶部概率图加上缩略统计摘要，方便快速查看（不替代底部详述）
+            short_lines = stats_lines[:8]  # 截取前几行作为摘要
+            short_text = "\n".join(short_lines)
+            ax1.text(0.02, 0.95, short_text, transform=ax1.transAxes, fontsize=9, va='top', family='sans-serif',
+                     bbox=dict(boxstyle='round', facecolor='white', alpha=0.85, pad=0.6))
 
         plt.tight_layout()
         plt.close(fig)
@@ -632,6 +637,33 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
 
         if file_info:
             fig.text(0.5, 0.01, f'数据来源: {file_info}', fontsize=9, ha='center')
+
+    # 在合并视图的顶部概率子图上添加统计摘要（方便快速查看）
+    if stats is not None:
+        stats_lines = [
+            f"原神抽卡概率分析报告",
+            "",
+            f"当前状态: 已连续 {stats['current_pulls']} 抽未出5星",
+            f"当前单抽出金概率: {stats['current_prob']:.2%}",
+            f"下一抽出金概率: {stats['next_pull_prob']:.2%}",
+            f"距离软保底开始还需: {stats['pulls_to_soft_pity']} 抽",
+            f"距离硬保底还需: {stats['pulls_to_hard_pity']} 抽",
+            f"数学期望(还需): {stats['expected_pulls']:.1f} 抽",
+            "",
+            "累积概率分析:"
+        ]
+        for target in [25, 50, 75, 90, 99]:
+            key = f'pulls_to_{target}%'
+            if key in stats:
+                value = stats[key]
+                if isinstance(value, str):
+                    stats_lines.append(f"{target}%: {value}")
+                else:
+                    stats_lines.append(f"{target}%: 还需 {value} 抽 (总计 {stats['current_pulls'] + value} 抽)")
+
+        short_text = "\n".join(stats_lines[:8])
+        ax_prob_top.text(0.02, 0.95, short_text, transform=ax_prob_top.transAxes, fontsize=9, va='top',
+                         bbox=dict(boxstyle='round', facecolor='white', alpha=0.85, pad=0.6))
 
     else:
         ax_note = axes[2]
