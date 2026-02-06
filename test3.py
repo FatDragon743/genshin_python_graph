@@ -63,8 +63,10 @@ class GenshinWishProbability:
         """绘制概率曲线：垂直堆叠，每张子图一行。若提供 `stats`，在底部显示统计文本。"""
         # 垂直布局：每个子图占一行，行数根据是否显示统计信息而定
         nrows = 3 if stats is not None else 2
-        fig_height = max(6, 3 * nrows)
-        fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height))
+        # 每行高度增加以生成更长的图像，便于查看
+        per_row_height = 4.5
+        fig_height = max(8, per_row_height * nrows)
+        fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height), constrained_layout=True)
         if nrows == 3:
             ax1, ax2, ax3 = axes
             ax3.axis('off')
@@ -384,8 +386,10 @@ def plot_full_analysis(wish_counts, characters):
 
     # 垂直布局：6 个子图依次向下排列，网页风格
     nrows = 6
-    fig_height = max(12, 3 * nrows)
-    fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height))
+    # 使用更高的每行高度生成长图，减小子图压缩
+    per_row_height = 4.5
+    fig_height = max(18, per_row_height * nrows)
+    fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height), constrained_layout=True)
     fig.suptitle('原神抽卡数据分析（来自文件）', fontsize=16, fontweight='bold')
 
     # 1. 抽数分布直方图
@@ -516,8 +520,9 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
     # 根据是否包含完整分析，计算行数（2 行概率 + 6 行完整分析 或 1 行注释）
     has_full = (wish_counts is not None and characters is not None)
     nrows = 2 + (6 if has_full else 1)
-    fig_height = max(8, 3 * nrows)
-    fig, axes = plt.subplots(nrows, 1, figsize=(14, fig_height))
+    per_row_height = 4.5
+    fig_height = max(10, per_row_height * nrows)
+    fig, axes = plt.subplots(nrows, 1, figsize=(14, fig_height), constrained_layout=True)
 
     ax_prob_top = axes[0]
     ax_prob_bot = axes[1]
