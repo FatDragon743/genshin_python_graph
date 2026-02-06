@@ -473,32 +473,45 @@ def plot_full_analysis(wish_counts, characters):
     ax3.set_title('角色类型分布', fontsize=14)
     ax3.axis('equal')
 
-    # 4. 平均抽数走势（每 batch_size 个 5 星为一批）
+    # 4. 平均抽数走势：以“第 x 个 5星”为 x 轴，显示每次抽数、累积平均和滑动平均
     ax4 = axes[3]
-    batch_size = 10
-    batch_means = []
-    batch_indices = []
-    for i in range(0, len(wish_counts), batch_size):
-        batch = wish_counts[i:i+batch_size]
-        if len(batch) > 0:
-            batch_means.append(np.mean(batch))
-            batch_indices.append(i//batch_size + 1)
-    ax4.plot(batch_indices, batch_means, 'o-', linewidth=2, markersize=8, color='purple')
-    ax4.plot(batch_indices, batch_means, 'o-', linewidth=2, markersize=8, color='purple', label='批次平均')
-    # 基准线：最后一批的平均值作为参考基准
-    last_avg = batch_means[-1] if len(batch_means) > 0 else np.mean(wish_counts)
-    ax4.axhline(y=last_avg, color='red', linestyle='--', alpha=0.9, label=f'最后批次平均: {last_avg:.1f}')
-    ax4.axhline(y=np.mean(wish_counts), color='orange', linestyle='-.', alpha=0.7, label=f'总体平均: {np.mean(wish_counts):.1f}')
+    counts = np.array(wish_counts)
+    n = len(counts)
+    x_idx = np.arange(1, n+1)
+
+    # 每次5星的抽数点
+    ax4.scatter(x_idx, counts, color='lightgray', s=30, label='每次5星抽数')
+
+    # 累积平均（第 i 次5星的累计平均）
+    cum_avg = [np.mean(counts[:i]) for i in range(1, n+1)]
+    ax4.plot(x_idx, cum_avg, '-o', color='purple', linewidth=2, markersize=6, label='累计平均')
+
+    # 滑动平均（窗口 10）作为趋势参考
+    window = 10
+    if n >= 2:
+        mov_avg = [np.mean(counts[max(0, i-window):i]) for i in range(1, n+1)]
+        ax4.plot(x_idx, mov_avg, '-s', color='tab:blue', linewidth=1.5, markersize=4, alpha=0.9, label=f'{window} 次滑动平均')
+
+    # 基准线：使用最后一次的累计平均与总体平均与理论期望
+    final_cum = cum_avg[-1] if len(cum_avg) > 0 else np.mean(counts)
+    ax4.axhline(y=final_cum, color='red', linestyle='--', alpha=0.9, label=f'最终累计平均: {final_cum:.1f}')
+    ax4.axhline(y=np.mean(counts), color='orange', linestyle='-.', alpha=0.7, label=f'总体平均: {np.mean(counts):.1f}')
     ax4.axhline(y=62.5, color='green', linestyle=':', alpha=0.7, label='理论期望: 62.5')
-    ax4.set_xlabel('批次 (每10次5星)', fontsize=12)
-    ax4.set_ylabel('平均抽数', fontsize=12)
-    ax4.set_title('平均抽数走势', fontsize=14)
+
+    ax4.set_xlabel('第 x 个 5星', fontsize=12)
+    ax4.set_ylabel('抽数', fontsize=12)
+    ax4.set_title('每个5星抽数与累计平均走势', fontsize=14)
     ax4.grid(True, alpha=0.3)
-    # 标注每个点的具体值
-    for xi, val in zip(batch_indices, batch_means):
-        ax4.text(xi, val + 1.5, f'{val:.1f}', ha='center', fontsize=9)
+
+    # 标注部分点的值以减少拥挤（每隔 step 标注一次）
+    step = max(1, n // 20)
+    for i in range(0, n, step):
+        ax4.text(x_idx[i], counts[i] + 1.5, f'{counts[i]}', ha='center', fontsize=8)
+
     ax4.legend()
-    ax4.set_xticks(batch_indices)
+    # 控制 x 轴刻度密度
+    xtick_step = max(1, n // 10)
+    ax4.set_xticks(x_idx[::xtick_step])
 
     # 5. 角色出现频次柱状图（前10名）
     ax5 = axes[4]
@@ -662,18 +675,31 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
             if len(batch) > 0:
                 batch_means.append(np.mean(batch))
                 batch_indices.append(i//batch_size + 1)
-        ax4.plot(batch_indices, batch_means, 'o-', color='purple', label='批次平均')
-        # 基准线：使用最后一批的平均值作为参考，并显示总体平均与理论期望
-        last_avg = batch_means[-1] if len(batch_means) > 0 else np.mean(wish_counts)
-        ax4.axhline(y=last_avg, color='red', linestyle='--', alpha=0.9, label=f'最后批次平均: {last_avg:.1f}')
-        ax4.axhline(y=np.mean(wish_counts), color='orange', linestyle='-.', alpha=0.7, label=f'总体平均: {np.mean(wish_counts):.1f}')
+        # 改为以“第 x 个 5星”为 x 轴的展示
+        counts = np.array(wish_counts)
+        n = len(counts)
+        x_idx = np.arange(1, n+1)
+        ax4.scatter(x_idx, counts, color='lightgray', s=30, label='每次5星抽数')
+        cum_avg = [np.mean(counts[:i]) for i in range(1, n+1)]
+        ax4.plot(x_idx, cum_avg, '-o', color='purple', linewidth=2, markersize=6, label='累计平均')
+        window = 10
+        if n >= 2:
+            mov_avg = [np.mean(counts[max(0, i-window):i]) for i in range(1, n+1)]
+            ax4.plot(x_idx, mov_avg, '-s', color='tab:blue', linewidth=1.5, markersize=4, alpha=0.9, label=f'{window}次滑动平均')
+        final_cum = cum_avg[-1] if len(cum_avg) > 0 else np.mean(counts)
+        ax4.axhline(y=final_cum, color='red', linestyle='--', alpha=0.9, label=f'最终累计平均: {final_cum:.1f}')
+        ax4.axhline(y=np.mean(counts), color='orange', linestyle='-.', alpha=0.7, label=f'总体平均: {np.mean(counts):.1f}')
         ax4.axhline(y=62.5, color='green', linestyle=':', alpha=0.7, label='理论期望: 62.5')
-        # 标注每个点的具体值
-        for xi, val in zip(batch_indices, batch_means):
-            ax4.text(xi, val + 1.5, f'{val:.1f}', ha='center', fontsize=9)
-        ax4.set_title('平均抽数走势')
+        ax4.set_xlabel('第 x 个 5星', fontsize=12)
+        ax4.set_ylabel('抽数', fontsize=12)
+        ax4.set_title('每个5星抽数与累计平均走势')
         ax4.grid(True, alpha=0.3)
+        step = max(1, n // 20)
+        for i in range(0, n, step):
+            ax4.text(x_idx[i], counts[i] + 1.5, f'{counts[i]}', ha='center', fontsize=8)
         ax4.legend()
+        xtick_step = max(1, n // 10)
+        ax4.set_xticks(x_idx[::xtick_step])
 
         ax5 = axes[6]
         char_counts = {}
