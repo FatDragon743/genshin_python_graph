@@ -835,20 +835,31 @@ def display_image_in_scroll_window(image_path):
     img = Image.open(image_path)
     width, height = img.size
 
-    canvas = tk.Canvas(win, width=min(1200, width), height=min(800, height))
-    hbar = ttk.Scrollbar(win, orient=tk.HORIZONTAL, command=canvas.xview)
-    vbar = ttk.Scrollbar(win, orient=tk.VERTICAL, command=canvas.yview)
-    canvas.configure(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+    # 使图像横向自适应屏幕宽度（缩放用于显示，不影响源文件）
+    screen_w = win.winfo_screenwidth()
+    max_display_w = int(screen_w * 0.92)
+    if width > max_display_w:
+        ratio = max_display_w / width
+        disp_w = max_display_w
+        disp_h = int(height * ratio)
+        display_img = img.resize((disp_w, disp_h), Image.LANCZOS)
+    else:
+        display_img = img.copy()
+        disp_w, disp_h = display_img.size
 
-    hbar.pack(side=tk.BOTTOM, fill=tk.X)
+    # 使用仅竖向滚动条（横向已适配屏幕宽度）
+    canvas = tk.Canvas(win, width=min(disp_w, max_display_w), height=min(800, disp_h))
+    vbar = ttk.Scrollbar(win, orient=tk.VERTICAL, command=canvas.yview)
+    canvas.configure(yscrollcommand=vbar.set)
+
     vbar.pack(side=tk.RIGHT, fill=tk.Y)
     canvas.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
 
-    # 将图像转换为 PhotoImage（可能需要缩放为适合显示器）
-    photo = ImageTk.PhotoImage(img)
+    # 将图像转换为 PhotoImage 并放入 canvas
+    photo = ImageTk.PhotoImage(display_img)
     canvas.create_image(0, 0, anchor='nw', image=photo)
     canvas.image = photo
-    canvas.config(scrollregion=(0, 0, width, height))
+    canvas.config(scrollregion=(0, 0, disp_w, disp_h))
 
     # 允许使用鼠标滚轮滚动
     def _on_mousewheel(event):
