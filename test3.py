@@ -107,13 +107,26 @@ class GenshinWishProbability:
                 ax1.text(x_values[i], prob + 0.01, f'{prob:.1%}', ha='center', va='bottom', fontsize=9, rotation=0)
 
         ax2.plot(x_values, cumulative_probs, 'o-', linewidth=2, markersize=4, color='darkblue')
-        for target_prob in [0.5, 0.75, 0.9, 0.99]:
+        ax2.plot([], [], 'o', color='darkblue', label='累积概率')
+        # 关键百分位线并注释
+        for target_prob in [0.25, 0.5, 0.75, 0.9, 0.99]:
             for i, cum_prob in enumerate(cumulative_probs):
                 if cum_prob >= target_prob:
-                    ax2.axhline(y=target_prob, color='gray', linestyle=':', alpha=0.5)
-                    ax2.axvline(x=x_values[i], color='gray', linestyle=':', alpha=0.5)
-                    ax2.text(x_values[i] + 0.5, target_prob - 0.03, f'{target_prob:.0%} ({x_values[i]}抽)', fontsize=9)
+                    ax2.axhline(y=target_prob, color='gray', linestyle='--', alpha=0.6)
+                    ax2.axvline(x=x_values[i], color='gray', linestyle='--', alpha=0.6)
+                    ax2.text(x_values[i] + 0.6, target_prob - 0.03, f'{int(target_prob*100)}% ({x_values[i]}抽)', fontsize=9,
+                             bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
                     break
+        # 在若干点上标注具体累积概率值并画辅助虚线（间隔采样，避免过度拥挤）
+        sample_step = max(1, len(cumulative_probs)//20)
+        for i in range(0, len(cumulative_probs), sample_step):
+            xp = x_values[i]
+            yp = cumulative_probs[i]
+            ax2.plot(xp, yp, 'o', color='navy')
+            ax2.text(xp, yp + 0.03, f'{yp:.1%}', ha='center', fontsize=8)
+            ax2.axvline(x=xp, color='lightgray', linestyle=':', linewidth=0.8)
+            ax2.axhline(y=yp, color='lightgray', linestyle=':', linewidth=0.8)
+        ax2.legend()
 
         ax2.set_xlabel('抽数')
         ax2.set_ylabel('累积出金概率')
@@ -419,7 +432,7 @@ def plot_full_analysis(wish_counts, characters):
     ax2 = axes[1]
     sorted_counts = np.sort(wish_counts)
     cumulative_prob = np.arange(1, len(sorted_counts) + 1) / len(sorted_counts)
-    ax2.plot(sorted_counts, cumulative_prob * 100, 'o-', linewidth=2, markersize=4, color='coral')
+    ax2.plot(sorted_counts, cumulative_prob * 100, 'o-', linewidth=2, markersize=4, color='coral', label='经验分布')
     key_points = [20, 30, 40, 50, 60, 70, 80]
     for point in key_points:
         idx = np.searchsorted(sorted_counts, point)
@@ -427,7 +440,7 @@ def plot_full_analysis(wish_counts, characters):
             prob = cumulative_prob[idx] * 100
             ax2.plot(point, prob, 'ro', markersize=8)
             ax2.text(point + 2, prob - 5, f'{prob:.1f}%', fontsize=10)
-    ax2.set_xlabel('抽数', fontsize=12)
+        ax2.set_xlabel('抽数', fontsize=12)
     ax2.set_ylabel('累积概率 (%)', fontsize=12)
     ax2.set_title('累积概率分布', fontsize=14)
     ax2.grid(True, alpha=0.3)
@@ -458,12 +471,19 @@ def plot_full_analysis(wish_counts, characters):
             batch_means.append(np.mean(batch))
             batch_indices.append(i//batch_size + 1)
     ax4.plot(batch_indices, batch_means, 'o-', linewidth=2, markersize=8, color='purple')
-    ax4.axhline(y=np.mean(wish_counts), color='red', linestyle='--', alpha=0.7, label=f'总平均: {np.mean(wish_counts):.1f}')
+    ax4.plot(batch_indices, batch_means, 'o-', linewidth=2, markersize=8, color='purple', label='批次平均')
+    # 基准线：最后一批的平均值作为参考基准
+    last_avg = batch_means[-1] if len(batch_means) > 0 else np.mean(wish_counts)
+    ax4.axhline(y=last_avg, color='red', linestyle='--', alpha=0.9, label=f'最后批次平均: {last_avg:.1f}')
+    ax4.axhline(y=np.mean(wish_counts), color='orange', linestyle='-.', alpha=0.7, label=f'总体平均: {np.mean(wish_counts):.1f}')
     ax4.axhline(y=62.5, color='green', linestyle=':', alpha=0.7, label='理论期望: 62.5')
     ax4.set_xlabel('批次 (每10次5星)', fontsize=12)
     ax4.set_ylabel('平均抽数', fontsize=12)
     ax4.set_title('平均抽数走势', fontsize=14)
     ax4.grid(True, alpha=0.3)
+    # 标注每个点的具体值
+    for xi, val in zip(batch_indices, batch_means):
+        ax4.text(xi, val + 1.5, f'{val:.1f}', ha='center', fontsize=9)
     ax4.legend()
     ax4.set_xticks(batch_indices)
 
@@ -472,7 +492,7 @@ def plot_full_analysis(wish_counts, characters):
     char_counts = {}
     for char in characters:
         char_counts[char] = char_counts.get(char, 0) + 1
-    top_chars = sorted(char_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        top_chars = sorted(char_counts.items(), key=lambda x: x[1], reverse=True)[:20]
     char_names = [char for char, _ in top_chars]
     char_freq = [count for _, count in top_chars]
     colors_bar = ['gold' if char in standard_chars else 'lightblue' for char in char_names]
@@ -481,7 +501,7 @@ def plot_full_analysis(wish_counts, characters):
     ax5.set_yticklabels(char_names, fontsize=10)
     ax5.invert_yaxis()
     ax5.set_xlabel('出现次数', fontsize=12)
-    ax5.set_title('角色出现频次 Top 10', fontsize=14)
+        ax5.set_title('角色出现频次 Top 20', fontsize=14)
     for bar, count in zip(bars, char_freq):
         width = bar.get_width()
         ax5.text(width + 0.1, bar.get_y() + bar.get_height()/2, str(count), va='center', fontsize=10)
@@ -557,17 +577,28 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
         if prob > 0.1 or i == 0 or i == len(probabilities) - 1 or x_values[i] == 74:
             ax_prob_top.text(x_values[i], prob + 0.01, f'{prob:.1%}', ha='center', va='bottom', fontsize=9, rotation=0)
 
-    ax_prob_bot.plot(x_values, cumulative_probs, 'o-', linewidth=2, markersize=4, color='darkblue')
-    for target_prob in [0.5, 0.75, 0.9, 0.99]:
+    ax_prob_bot.plot(x_values, cumulative_probs, 'o-', linewidth=2, markersize=4, color='darkblue', label='累积概率')
+    # 增加关键百分位线并注释，同时在若干点上绘制虚线和数值标注（采样以避免过密）
+    for target_prob in [0.25, 0.5, 0.75, 0.9, 0.99]:
         for i, cum_prob in enumerate(cumulative_probs):
             if cum_prob >= target_prob:
-                ax_prob_bot.axhline(y=target_prob, color='gray', linestyle=':', alpha=0.5)
-                ax_prob_bot.axvline(x=x_values[i], color='gray', linestyle=':', alpha=0.5)
-                ax_prob_bot.text(x_values[i] + 0.5, target_prob - 0.03, f'{target_prob:.0%} ({x_values[i]}抽)', fontsize=9)
+                ax_prob_bot.axhline(y=target_prob, color='gray', linestyle='--', alpha=0.6)
+                ax_prob_bot.axvline(x=x_values[i], color='gray', linestyle='--', alpha=0.6)
+                ax_prob_bot.text(x_values[i] + 0.6, target_prob - 0.03, f'{int(target_prob*100)}% ({x_values[i]}抽)', fontsize=9,
+                                 bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
                 break
+    sample_step = max(1, len(cumulative_probs)//20)
+    for i in range(0, len(cumulative_probs), sample_step):
+        xp = x_values[i]
+        yp = cumulative_probs[i]
+        ax_prob_bot.plot(xp, yp, 'o', color='navy')
+        ax_prob_bot.text(xp, yp + 0.03, f'{yp:.1%}', ha='center', fontsize=8)
+        ax_prob_bot.axvline(x=xp, color='lightgray', linestyle=':', linewidth=0.8)
+        ax_prob_bot.axhline(y=yp, color='lightgray', linestyle=':', linewidth=0.8)
     ax_prob_bot.set_title('累积出金概率')
     ax_prob_bot.yaxis.set_major_formatter(PercentFormatter(1.0))
     ax_prob_bot.grid(True, alpha=0.3)
+    ax_prob_bot.legend()
 
     # 右侧区域改为向下展开的完整分析
     if has_full:
@@ -600,21 +631,35 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
             if len(batch) > 0:
                 batch_means.append(np.mean(batch))
                 batch_indices.append(i//batch_size + 1)
-        ax4.plot(batch_indices, batch_means, 'o-', color='purple')
+        ax4.plot(batch_indices, batch_means, 'o-', color='purple', label='批次平均')
+        # 基准线：使用最后一批的平均值作为参考，并显示总体平均与理论期望
+        last_avg = batch_means[-1] if len(batch_means) > 0 else np.mean(wish_counts)
+        ax4.axhline(y=last_avg, color='red', linestyle='--', alpha=0.9, label=f'最后批次平均: {last_avg:.1f}')
+        ax4.axhline(y=np.mean(wish_counts), color='orange', linestyle='-.', alpha=0.7, label=f'总体平均: {np.mean(wish_counts):.1f}')
+        ax4.axhline(y=62.5, color='green', linestyle=':', alpha=0.7, label='理论期望: 62.5')
+        # 标注每个点的具体值
+        for xi, val in zip(batch_indices, batch_means):
+            ax4.text(xi, val + 1.5, f'{val:.1f}', ha='center', fontsize=9)
         ax4.set_title('平均抽数走势')
+        ax4.grid(True, alpha=0.3)
+        ax4.legend()
 
         ax5 = axes[6]
         char_counts = {}
         for ch in characters:
             char_counts[ch] = char_counts.get(ch, 0) + 1
-        top = sorted(char_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        # 展示 Top20 并在柱上标注确切数值
+        top = sorted(char_counts.items(), key=lambda x: x[1], reverse=True)[:20]
         names = [t[0] for t in top]
         freqs = [t[1] for t in top]
-        ax5.barh(range(len(names)), freqs, color='lightblue')
+        bars = ax5.barh(range(len(names)), freqs, color='lightblue', edgecolor='black')
         ax5.set_yticks(range(len(names)))
         ax5.set_yticklabels(names)
         ax5.invert_yaxis()
-        ax5.set_title('角色出现频次 Top10')
+        ax5.set_title('角色出现频次 Top20')
+        for bar, count in zip(bars, freqs):
+            w = bar.get_width()
+            ax5.text(w + 0.1, bar.get_y() + bar.get_height()/2, str(count), va='center', fontsize=9)
 
         ax6 = axes[7]
         ax6.axis('off')
