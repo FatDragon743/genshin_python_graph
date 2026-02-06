@@ -20,6 +20,12 @@ import os
 from datetime import datetime
 import glob
 import re
+import tempfile
+try:
+    from PIL import Image, ImageTk
+except Exception:
+    Image = None
+    ImageTk = None
 
 # 字体设置，防止中文乱码
 plt.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei', 'SimSun']
@@ -64,8 +70,8 @@ class GenshinWishProbability:
         # 垂直布局：每个子图占一行，行数根据是否显示统计信息而定
         nrows = 3 if stats is not None else 2
         # 每行高度增加以生成更长的图像，便于查看
-        per_row_height = 4.5
-        fig_height = max(8, per_row_height * nrows)
+        per_row_height = 6.5
+        fig_height = max(10, per_row_height * nrows)
         fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height), constrained_layout=True)
         if nrows == 3:
             ax1, ax2, ax3 = axes
@@ -149,7 +155,7 @@ class GenshinWishProbability:
                      bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.95, pad=0.8))
 
         plt.tight_layout()
-        plt.show()
+        plt.close(fig)
         return fig
 
     def generate_statistics(self, pulls_since_last, probabilities, cumulative_probs):
@@ -387,8 +393,8 @@ def plot_full_analysis(wish_counts, characters):
     # 垂直布局：6 个子图依次向下排列，网页风格
     nrows = 6
     # 使用更高的每行高度生成长图，减小子图压缩
-    per_row_height = 4.5
-    fig_height = max(18, per_row_height * nrows)
+    per_row_height = 6.5
+    fig_height = max(24, per_row_height * nrows)
     fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height), constrained_layout=True)
     fig.suptitle('原神抽卡数据分析（来自文件）', fontsize=16, fontweight='bold')
 
@@ -511,7 +517,7 @@ def plot_full_analysis(wish_counts, characters):
     ax6.set_title('关键统计指标', fontsize=14, y=0.95)
 
     plt.tight_layout()
-    plt.show()
+    plt.close(fig)
     return fig
 
 
@@ -520,8 +526,8 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
     # 根据是否包含完整分析，计算行数（2 行概率 + 6 行完整分析 或 1 行注释）
     has_full = (wish_counts is not None and characters is not None)
     nrows = 2 + (6 if has_full else 1)
-    per_row_height = 4.5
-    fig_height = max(10, per_row_height * nrows)
+    per_row_height = 6.5
+    fig_height = max(14, per_row_height * nrows)
     fig, axes = plt.subplots(nrows, 1, figsize=(14, fig_height), constrained_layout=True)
 
     ax_prob_top = axes[0]
@@ -634,7 +640,7 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
         ax_note.text(0.5, 0.5, note, ha='center', va='center', fontsize=12, bbox=dict(facecolor='lightyellow', alpha=0.8))
 
     plt.tight_layout()
-    plt.show()
+    plt.close(fig)
     return fig
 
 
@@ -704,6 +710,19 @@ def create_gui():
             fig_container['fig'] = fig
             fig_container['pulls'] = pulls
             save_btn.config(state=tk.NORMAL)
+            # 保存临时图像并尝试在滚动窗口打开（便于查看长图）
+            try:
+                tmp = tempfile.gettempdir()
+                tmp_path = os.path.join(tmp, f"wish_tmp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                fig.savefig(tmp_path, dpi=150, bbox_inches='tight')
+                try:
+                    if Image is None or ImageTk is None:
+                        raise ImportError('Pillow 未安装')
+                    display_image_in_scroll_window(tmp_path)
+                except Exception:
+                    pass
+            except Exception:
+                pass
             messagebox.showinfo("成功", "图表已生成！\n现在可以点击'保存为图片'按钮保存图表。")
 
         except ValueError:
@@ -720,8 +739,17 @@ def create_gui():
             pulls = fig_container['pulls']
             filename = f"wish_analysis_pulls{pulls}_{timestamp}.png"
             filepath = os.path.join(save_dir, filename)
+            # 保存高分辨率长图
             fig_container['fig'].savefig(filepath, dpi=300, bbox_inches='tight')
             messagebox.showinfo("保存成功", f"图片已保存！\n路径: {filepath}")
+            # 尝试在带滚动条的新窗口中打开（需要 pillow）
+            try:
+                if Image is None or ImageTk is None:
+                    raise ImportError('Pillow 未安装')
+                display_image_in_scroll_window(filepath)
+            except Exception:
+                # 无法展示时静默返回（用户可在文件管理器中打开）
+                pass
         except Exception as e:
             messagebox.showerror("保存失败", f"保存图片时出错: {str(e)}")
 
@@ -755,6 +783,19 @@ def create_gui():
             fig_container['fig'] = fig
             fig_container['pulls'] = pulls
             save_btn.config(state=tk.NORMAL)
+            # 自动保存到临时文件并在可滚动窗口展示（便于查看长图）
+            try:
+                tmp = tempfile.gettempdir()
+                tmp_path = os.path.join(tmp, f"wish_tmp_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
+                fig.savefig(tmp_path, dpi=150, bbox_inches='tight')
+                try:
+                    if Image is None or ImageTk is None:
+                        raise ImportError('Pillow 未安装')
+                    display_image_in_scroll_window(tmp_path)
+                except Exception:
+                    pass
+            except Exception:
+                pass
             messagebox.showinfo("成功", "已生成合并分析图表！")
         except Exception as e:
             messagebox.showerror("错误", f"生成合并图表时出错: {e}")
@@ -780,6 +821,49 @@ def create_gui():
     author_label.pack(side=tk.BOTTOM, pady=5)
 
     root.mainloop()
+
+
+def display_image_in_scroll_window(image_path):
+    """在 Tkinter 可滚动窗口中显示大图（需要 Pillow）。"""
+    if Image is None or ImageTk is None:
+        raise ImportError('Pillow 未安装，请运行: pip install pillow')
+
+    win = tk.Toplevel()
+    win.title(os.path.basename(image_path))
+
+    # 加载图片
+    img = Image.open(image_path)
+    width, height = img.size
+
+    canvas = tk.Canvas(win, width=min(1200, width), height=min(800, height))
+    hbar = ttk.Scrollbar(win, orient=tk.HORIZONTAL, command=canvas.xview)
+    vbar = ttk.Scrollbar(win, orient=tk.VERTICAL, command=canvas.yview)
+    canvas.configure(xscrollcommand=hbar.set, yscrollcommand=vbar.set)
+
+    hbar.pack(side=tk.BOTTOM, fill=tk.X)
+    vbar.pack(side=tk.RIGHT, fill=tk.Y)
+    canvas.pack(side=tk.LEFT, expand=True, fill=tk.BOTH)
+
+    # 将图像转换为 PhotoImage（可能需要缩放为适合显示器）
+    photo = ImageTk.PhotoImage(img)
+    canvas.create_image(0, 0, anchor='nw', image=photo)
+    canvas.image = photo
+    canvas.config(scrollregion=(0, 0, width, height))
+
+    # 允许使用鼠标滚轮滚动
+    def _on_mousewheel(event):
+        canvas.yview_scroll(int(-1*(event.delta/120)), 'units')
+
+    canvas.bind_all('<MouseWheel>', _on_mousewheel)
+    # 当窗口关闭时释放图像引用
+    def on_close():
+        try:
+            canvas.image = None
+        except Exception:
+            pass
+        win.destroy()
+
+    win.protocol('WM_DELETE_WINDOW', on_close)
 
 
 def main():
