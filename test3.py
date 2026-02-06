@@ -432,20 +432,33 @@ def plot_full_analysis(wish_counts, characters):
     ax2 = axes[1]
     sorted_counts = np.sort(wish_counts)
     cumulative_prob = np.arange(1, len(sorted_counts) + 1) / len(sorted_counts)
-    ax2.plot(sorted_counts, cumulative_prob * 100, 'o-', linewidth=2, markersize=4, color='coral', label='经验分布')
-    key_points = [20, 30, 40, 50, 60, 70, 80]
-    for point in key_points:
-        idx = np.searchsorted(sorted_counts, point)
+    # 绘制经验累积分布并添加丰富注释
+    ax2.plot(sorted_counts, cumulative_prob * 100, 'o-', linewidth=2, markersize=5, color='coral', label='经验累积概率')
+    # 百分位参考线与注释
+    for target_prob in [0.25, 0.5, 0.75, 0.9, 0.99]:
+        idx = np.searchsorted(cumulative_prob, target_prob)
         if idx < len(sorted_counts):
-            prob = cumulative_prob[idx] * 100
-            ax2.plot(point, prob, 'ro', markersize=8)
-            ax2.text(point + 2, prob - 5, f'{prob:.1f}%', fontsize=10)
-        ax2.set_xlabel('抽数', fontsize=12)
+            xk = sorted_counts[idx]
+            yk = cumulative_prob[idx] * 100
+            ax2.axhline(y=target_prob * 100, color='gray', linestyle='--', alpha=0.6)
+            ax2.axvline(x=xk, color='gray', linestyle='--', alpha=0.6)
+            ax2.text(xk + 1, yk - 6, f'{int(target_prob*100)}% ({xk}抽)', fontsize=9, bbox=dict(facecolor='white', alpha=0.8))
+    # 在若干采样点显示具体累积概率并画辅助虚线
+    sample_step = max(1, len(cumulative_prob)//20)
+    for i in range(0, len(cumulative_prob), sample_step):
+        xp = sorted_counts[i]
+        yp = cumulative_prob[i] * 100
+        ax2.plot(xp, yp, 'o', color='navy')
+        ax2.text(xp, yp + 3, f'{yp:.1f}%', ha='center', fontsize=8)
+        ax2.axvline(x=xp, color='lightgray', linestyle=':', linewidth=0.8)
+        ax2.axhline(y=yp, color='lightgray', linestyle=':', linewidth=0.8)
+    ax2.set_xlabel('抽数', fontsize=12)
     ax2.set_ylabel('累积概率 (%)', fontsize=12)
     ax2.set_title('累积概率分布', fontsize=14)
     ax2.grid(True, alpha=0.3)
     ax2.set_xlim(0, 90)
     ax2.set_ylim(0, 105)
+    ax2.legend()
 
     # 3. 角色类型分布（简单按是否常驻）
     ax3 = axes[2]
@@ -501,7 +514,7 @@ def plot_full_analysis(wish_counts, characters):
     ax5.set_yticklabels(char_names, fontsize=10)
     ax5.invert_yaxis()
     ax5.set_xlabel('出现次数', fontsize=12)
-        ax5.set_title('角色出现频次 Top 20', fontsize=14)
+    ax5.set_title('角色出现频次 Top 20', fontsize=14)
     for bar, count in zip(bars, char_freq):
         width = bar.get_width()
         ax5.text(width + 0.1, bar.get_y() + bar.get_height()/2, str(count), va='center', fontsize=10)
@@ -612,8 +625,26 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
         ax2 = axes[3]
         sorted_counts = np.sort(wish_counts)
         cumulative_prob = np.arange(1, len(sorted_counts)+1)/len(sorted_counts)
-        ax2.plot(sorted_counts, cumulative_prob*100, 'o-', color='coral')
+        ax2.plot(sorted_counts, cumulative_prob*100, 'o-', color='coral', label='经验累积概率')
+        # 添加细节注释：百分位线与采样点值
+        for target_prob in [0.25, 0.5, 0.75, 0.9, 0.99]:
+            idx = np.searchsorted(cumulative_prob, target_prob)
+            if idx < len(sorted_counts):
+                xk = sorted_counts[idx]
+                yk = cumulative_prob[idx] * 100
+                ax2.axhline(y=target_prob*100, color='gray', linestyle='--', alpha=0.6)
+                ax2.axvline(x=xk, color='gray', linestyle='--', alpha=0.6)
+                ax2.text(xk + 1, yk - 6, f'{int(target_prob*100)}% ({xk}抽)', fontsize=9, bbox=dict(facecolor='white', alpha=0.8))
+        sample_step = max(1, len(cumulative_prob)//20)
+        for i in range(0, len(cumulative_prob), sample_step):
+            xp = sorted_counts[i]
+            yp = cumulative_prob[i] * 100
+            ax2.plot(xp, yp, 'o', color='navy')
+            ax2.text(xp, yp + 3, f'{yp:.1f}%', ha='center', fontsize=8)
+            ax2.axvline(x=xp, color='lightgray', linestyle=':', linewidth=0.8)
+            ax2.axhline(y=yp, color='lightgray', linestyle=':', linewidth=0.8)
         ax2.set_title('累积概率分布')
+        ax2.legend()
 
         ax3 = axes[4]
         standard_chars = {"刻晴", "迪卢克", "莫娜", "琴", "七七", "提纳里", "迪希雅"}
