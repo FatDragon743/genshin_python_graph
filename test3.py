@@ -60,16 +60,16 @@ class GenshinWishProbability:
         return cumulative_probs
 
     def plot_probability_curve(self, pulls_since_last, probabilities, cumulative_probs, stats=None):
-        """绘制概率曲线：左侧上下两个图，右侧为统计文本（如果提供）"""
-        if stats is not None:
-            fig = plt.figure(figsize=(16, 10))
-            gs = fig.add_gridspec(2, 2, width_ratios=[2, 1], height_ratios=[1, 1], hspace=0.3, wspace=0.3)
-            ax1 = fig.add_subplot(gs[0, 0])
-            ax2 = fig.add_subplot(gs[1, 0])
-            ax3 = fig.add_subplot(gs[:, 1])
+        """绘制概率曲线：垂直堆叠，每张子图一行。若提供 `stats`，在底部显示统计文本。"""
+        # 垂直布局：每个子图占一行，行数根据是否显示统计信息而定
+        nrows = 3 if stats is not None else 2
+        fig_height = max(6, 3 * nrows)
+        fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height))
+        if nrows == 3:
+            ax1, ax2, ax3 = axes
             ax3.axis('off')
         else:
-            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+            ax1, ax2 = axes
 
         x_values = list(range(pulls_since_last, pulls_since_last + len(probabilities)))
 
@@ -142,6 +142,7 @@ class GenshinWishProbability:
                         stats_lines.append(f"{target}%: 还需 {value} 抽")
 
             stats_text = "\n".join(stats_lines)
+            # 在底部独立一行显示统计文本，使整体呈现长页式布局
             ax3.text(0.02, 0.98, stats_text, transform=ax3.transAxes, fontsize=11, va='top', family='sans-serif',
                      bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.95, pad=0.8))
 
@@ -381,11 +382,14 @@ def plot_full_analysis(wish_counts, characters):
     import matplotlib.pyplot as plt
     import numpy as np
 
-    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    # 垂直布局：6 个子图依次向下排列，网页风格
+    nrows = 6
+    fig_height = max(12, 3 * nrows)
+    fig, axes = plt.subplots(nrows, 1, figsize=(12, fig_height))
     fig.suptitle('原神抽卡数据分析（来自文件）', fontsize=16, fontweight='bold')
 
     # 1. 抽数分布直方图
-    ax1 = axes[0, 0]
+    ax1 = axes[0]
     bins = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90]
     hist_data, bins_out, patches = ax1.hist(wish_counts, bins=bins, edgecolor='black', alpha=0.7, color='skyblue')
     for i, (count, patch) in enumerate(zip(hist_data, patches)):
@@ -397,7 +401,7 @@ def plot_full_analysis(wish_counts, characters):
     ax1.set_xticks([5, 15, 25, 35, 45, 55, 65, 75, 85])
 
     # 2. 累积概率分布图
-    ax2 = axes[0, 1]
+    ax2 = axes[1]
     sorted_counts = np.sort(wish_counts)
     cumulative_prob = np.arange(1, len(sorted_counts) + 1) / len(sorted_counts)
     ax2.plot(sorted_counts, cumulative_prob * 100, 'o-', linewidth=2, markersize=4, color='coral')
@@ -416,7 +420,7 @@ def plot_full_analysis(wish_counts, characters):
     ax2.set_ylim(0, 105)
 
     # 3. 角色类型分布（简单按是否常驻）
-    ax3 = axes[0, 2]
+    ax3 = axes[2]
     standard_chars = {"刻晴", "迪卢克", "莫娜", "琴", "七七", "提纳里", "迪希雅"}
     standard_count = sum(1 for c in characters if c in standard_chars)
     limited_count = len(characters) - standard_count
@@ -429,7 +433,7 @@ def plot_full_analysis(wish_counts, characters):
     ax3.axis('equal')
 
     # 4. 平均抽数走势（每 batch_size 个 5 星为一批）
-    ax4 = axes[1, 0]
+    ax4 = axes[3]
     batch_size = 10
     batch_means = []
     batch_indices = []
@@ -449,7 +453,7 @@ def plot_full_analysis(wish_counts, characters):
     ax4.set_xticks(batch_indices)
 
     # 5. 角色出现频次柱状图（前10名）
-    ax5 = axes[1, 1]
+    ax5 = axes[4]
     char_counts = {}
     for char in characters:
         char_counts[char] = char_counts.get(char, 0) + 1
@@ -468,7 +472,7 @@ def plot_full_analysis(wish_counts, characters):
         ax5.text(width + 0.1, bar.get_y() + bar.get_height()/2, str(count), va='center', fontsize=10)
 
     # 6. 统计指标表格
-    ax6 = axes[1, 2]
+    ax6 = axes[5]
     ax6.axis('off')
     mean_count = np.mean(wish_counts)
     median_count = np.median(wish_counts)
@@ -508,13 +512,15 @@ def plot_full_analysis(wish_counts, characters):
 
 
 def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_counts=None, characters=None, file_info=None):
-    """将概率图与完整分析合并到单一布局中并返回 Figure。"""
-    fig = plt.figure(figsize=(20, 12))
-    gs = fig.add_gridspec(2, 4, width_ratios=[1, 1, 1, 1], wspace=0.4, hspace=0.4)
+    """将概率图与完整分析合并为垂直布局：概率图在上，完整分析逐项向下排列。"""
+    # 根据是否包含完整分析，计算行数（2 行概率 + 6 行完整分析 或 1 行注释）
+    has_full = (wish_counts is not None and characters is not None)
+    nrows = 2 + (6 if has_full else 1)
+    fig_height = max(8, 3 * nrows)
+    fig, axes = plt.subplots(nrows, 1, figsize=(14, fig_height))
 
-    # 左侧两列合并用于概率图（上下两个子图）
-    ax_prob_top = fig.add_subplot(gs[0, 0:2])
-    ax_prob_bot = fig.add_subplot(gs[1, 0:2])
+    ax_prob_top = axes[0]
+    ax_prob_bot = axes[1]
 
     x_values = list(range(pulls, pulls + len(probabilities)))
     bars = ax_prob_top.bar(x_values, probabilities, color='skyblue', edgecolor='black', linewidth=0.5)
@@ -547,37 +553,29 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
     ax_prob_bot.yaxis.set_major_formatter(PercentFormatter(1.0))
     ax_prob_bot.grid(True, alpha=0.3)
 
-    # 右侧区域用于完整分析（若有）
-    if wish_counts is not None and characters is not None:
-        gs_full = gs[:, 2:].subgridspec(2, 3, hspace=0.4, wspace=0.4)
-        axes = [fig.add_subplot(gs_full[i, j]) for i in range(2) for j in range(3)]
-
-        # reuse plotting from plot_full_analysis but draw onto axes
-        # 1 histogram
-        ax1 = axes[0]
+    # 右侧区域改为向下展开的完整分析
+    if has_full:
+        ax1 = axes[2]
         bins = [0,10,20,30,40,50,60,70,80,90]
         hist_data, _, patches = ax1.hist(wish_counts, bins=bins, edgecolor='black', alpha=0.7, color='skyblue')
         for count, patch in zip(hist_data, patches):
             ax1.text(patch.get_x() + patch.get_width()/2, count + 0.5, str(int(count)), ha='center', va='bottom')
         ax1.set_title('抽数分布直方图')
 
-        # 2 cumulative
-        ax2 = axes[1]
+        ax2 = axes[3]
         sorted_counts = np.sort(wish_counts)
         cumulative_prob = np.arange(1, len(sorted_counts)+1)/len(sorted_counts)
         ax2.plot(sorted_counts, cumulative_prob*100, 'o-', color='coral')
         ax2.set_title('累积概率分布')
 
-        # 3 pie
-        ax3 = axes[2]
+        ax3 = axes[4]
         standard_chars = {"刻晴", "迪卢克", "莫娜", "琴", "七七", "提纳里", "迪希雅"}
         standard_count = sum(1 for c in characters if c in standard_chars)
         limited_count = len(characters) - standard_count
         ax3.pie([limited_count, standard_count], labels=['限定','常驻'], autopct='%1.1f%%')
         ax3.set_title('角色类型分布')
 
-        # 4 avg trend
-        ax4 = axes[3]
+        ax4 = axes[5]
         batch_size = 10
         batch_means = []
         batch_indices = []
@@ -589,8 +587,7 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
         ax4.plot(batch_indices, batch_means, 'o-', color='purple')
         ax4.set_title('平均抽数走势')
 
-        # 5 freq
-        ax5 = axes[4]
+        ax5 = axes[6]
         char_counts = {}
         for ch in characters:
             char_counts[ch] = char_counts.get(ch, 0) + 1
@@ -603,16 +600,13 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
         ax5.invert_yaxis()
         ax5.set_title('角色出现频次 Top10')
 
-        # 6 table
-        ax6 = axes[5]
+        ax6 = axes[7]
         ax6.axis('off')
         mean_count = np.mean(wish_counts)
         median_count = np.median(wish_counts)
         std_count = np.std(wish_counts)
         min_count = min(wish_counts)
         max_count = max(wish_counts)
-        soft_guarantee = sum(1 for c in wish_counts if c >= 74)/len(wish_counts)*100
-        early_lucky = sum(1 for c in wish_counts if c <= 20)/len(wish_counts)*100
         table_data = [
             ["指标","你的数据","参考"],
             ["平均抽数", f"{mean_count:.1f}", "~62.5"],
@@ -626,11 +620,10 @@ def plot_merged_analysis(pulls, probabilities, cumulative_probs, stats, wish_cou
         table.set_fontsize(10)
 
         if file_info:
-            fig.text(0.75, 0.02, f'数据来源: {file_info}', fontsize=9, ha='center')
+            fig.text(0.5, 0.01, f'数据来源: {file_info}', fontsize=9, ha='center')
 
     else:
-        # 右侧空白提示用户没有文件数据
-        ax_note = fig.add_subplot(gs[:, 2:])
+        ax_note = axes[2]
         ax_note.axis('off')
         note = "未检测到完整抽卡记录文件。\n仅显示概率分析。\n如需完整分析，请将 '原神祈愿记录*.xlsx' 放到当前文件夹。"
         ax_note.text(0.5, 0.5, note, ha='center', va='center', fontsize=12, bbox=dict(facecolor='lightyellow', alpha=0.8))
