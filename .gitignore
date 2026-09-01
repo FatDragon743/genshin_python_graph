@@ -1,2 +1,11 @@
 /.vscode
 *.png
+data/session.json
+data/*.xlsx
+data/.cache/
+__pycache__/
+*.pyc
+.Python
+*.egg-info/
+.venv/
+venv/

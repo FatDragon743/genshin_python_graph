@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>原神抽卡 · 欧非与概率分析</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="bg-glow" aria-hidden="true"></div>
+  <header class="top">
+    <div class="brand">
+      <p class="brand-mark">GENSHIN WISH</p>
+      <h1>抽卡总结</h1>
+      <p class="brand-sub">欧非运势 · 限定/常驻 · 出金概率</p>
+    </div>
+    <div class="actions" id="actions">
+      <button type="button" class="btn primary" id="btn-login">米游社扫码</button>
+      <button type="button" class="btn" id="btn-sync" disabled>同步记录</button>
+      <button type="button" class="btn accent" id="btn-refresh">刷新数据</button>
+      <button type="button" class="btn ghost" id="btn-logout" disabled>清除登录</button>
+    </div>
+  </header>
+
+  <section class="status-bar" id="status-bar">
+    <span id="status-text">加载中…</span>
+    <span id="db-text"></span>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button type="button" class="tab active" data-tab="luck" role="tab" aria-selected="true">欧非分析</button>
+    <button type="button" class="tab" data-tab="prob" role="tab" aria-selected="false">概率分析</button>
+  </nav>
+
+  <main id="panel-luck" class="dashboard tab-panel active">
+    <p class="empty-hint">加载中…</p>
+  </main>
+
+  <main id="panel-prob" class="dashboard tab-panel">
+    <div class="pool-tabs" id="prob-pool-tabs" role="tablist"></div>
+    <p class="cache-tip" id="prob-pool-rule"></p>
+    <section class="prob-card">
+      <div class="prob-head">
+        <h2 class="pool-title" id="prob-section-title">当前垫刀 · 出金概率</h2>
+        <label class="pity-edit">
+          当前垫刀
+          <input type="number" id="pity-input" min="0" max="89" value="0" />
+          <button type="button" class="btn" id="btn-recalc">重算</button>
+        </label>
+      </div>
+      <div class="metrics" id="prob-metrics"></div>
+      <div class="chart-grid">
+        <div class="chart-box split-prob">
+          <div class="split-prob-hint">单抽出金概率量级差大：左侧放大基础段，右侧单独看软/硬保底爬升（比双轴/断轴更直观）</div>
+          <div class="split-prob-grid">
+            <div class="split-prob-pane"><canvas id="chart-single-base"></canvas></div>
+            <div class="split-prob-gap" aria-hidden="true">‖</div>
+            <div class="split-prob-pane"><canvas id="chart-single-soft"></canvas></div>
+          </div>
+        </div>
+        <div class="chart-box"><canvas id="chart-cum"></canvas></div>
+      </div>
+    </section>
+
+    <section class="prob-card">
+      <div class="prob-head">
+        <h2 class="pool-title" id="four-section-title">四星十抽保底 · 下个四星</h2>
+      </div>
+      <p class="cache-tip" id="four-rule-tip"></p>
+      <div class="metrics" id="four-metrics"></div>
+      <div class="chart-grid">
+        <div class="chart-box"><canvas id="chart-four-single"></canvas></div>
+        <div class="chart-box"><canvas id="chart-four-cum"></canvas></div>
+        <div class="chart-box"><canvas id="chart-four-hist"></canvas></div>
+      </div>
+      <div class="timeline-box" id="four-timeline"></div>
+    </section>
+
+    <section class="prob-card">
+      <h2 class="pool-title">历史规律 · 分布对比</h2>
+      <div class="metrics" id="hist-metrics"></div>
+      <div class="zone-row" id="zone-row"></div>
+      <div class="chart-grid">
+        <div class="chart-box"><canvas id="chart-hist"></canvas></div>
+        <div class="chart-box"><canvas id="chart-pmf"></canvas></div>
+        <div class="chart-box"><canvas id="chart-ecdf"></canvas></div>
+        <div class="chart-box"><canvas id="chart-zones"></canvas></div>
+      </div>
+    </section>
+
+    <section class="prob-card">
+      <h2 class="pool-title">出金轨迹 · 情绪曲线</h2>
+      <div class="chart-grid">
+        <div class="chart-box tall"><canvas id="chart-seq"></canvas></div>
+        <div class="chart-box tall"><canvas id="chart-5050"></canvas></div>
+      </div>
+      <div class="timeline-box" id="char-timeline"></div>
+    </section>
+  </main>
+
+  <aside class="log-panel">
+    <div class="log-head">运行日志</div>
+    <pre id="log"></pre>
+  </aside>
+
+  <div class="modal hidden" id="qr-modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h2>米游社扫码登录</h2>
+      <p class="modal-tip">打开米游社 APP → 我的 → 扫一扫</p>
+      <div class="qr-wrap">
+        <img id="qr-img" alt="登录二维码" />
+        <p id="qr-msg">准备中…</p>
+      </div>
+      <button type="button" class="btn" id="btn-qr-cancel">取消</button>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
